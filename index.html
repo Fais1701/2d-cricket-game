@@ -2,88 +2,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Endless Dodger Improved</title>
+<title>Cricket Game - nPower Style</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #111; color: white; font-family: Arial; }
-  canvas { display: block; }
-  #score { position: absolute; top: 10px; left: 10px; font-size: 20px; }
+  body { margin:0; overflow:hidden; background:#0b6623; font-family:Arial; }
+  canvas { display:block; }
+  #ui { position:absolute; top:10px; left:10px; color:white; font-size:18px; }
 </style>
 </head>
 <body>
-<div id="score">Score: 0</div>
+<div id="ui">Runs: 0 | Balls: 0</div>
 <canvas id="game"></canvas><script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
 
-let player = { x: canvas.width / 2, y: canvas.height - 80, size: 25 };
-let obstacles = [];
-let speed = 3;
-let score = 0;
+let runs=0, balls=0;
+let ball, bat;
 
-function spawnObstacle() {
-  obstacles.push({
-    x: Math.random() * (canvas.width - 25),
-    y: -25,
-    size: 25
-  });
+function newBall(){
+  ball = {
+    x: canvas.width/2,
+    y: 0,
+    vx: (Math.random()-0.5)*4,
+    vy: 6,
+    hit:false
+  };
 }
 
-function update() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+bat = { x: canvas.width/2 - 60, y: canvas.height - 100, w:120, h:12 };
+newBall();
 
-  // Player
-  ctx.fillStyle = 'cyan';
-  ctx.fillRect(player.x, player.y, player.size, player.size);
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Obstacles
+  // grass
+  ctx.fillStyle = '#1e8f2f';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // pitch perspective
+  ctx.fillStyle = '#c2b280';
+  ctx.beginPath();
+  ctx.moveTo(canvas.width/2 - 40,0);
+  ctx.lineTo(canvas.width/2 + 40,0);
+  ctx.lineTo(canvas.width/2 + 120,canvas.height);
+  ctx.lineTo(canvas.width/2 - 120,canvas.height);
+  ctx.closePath();
+  ctx.fill();
+
+  // bat
+  ctx.fillStyle = 'white';
+  ctx.fillRect(bat.x, bat.y, bat.w, bat.h);
+
+  // ball
   ctx.fillStyle = 'red';
-  obstacles.forEach((o, i) => {
-    o.y += speed;
-    ctx.fillRect(o.x, o.y, o.size, o.size);
-
-    // Collision
-    if (
-      o.x < player.x + player.size &&
-      o.x + o.size > player.x &&
-      o.y < player.y + player.size &&
-      o.y + o.size > player.y
-    ) {
-      alert('Game Over! Score: ' + score);
-      document.location.reload();
-    }
-
-    if (o.y > canvas.height) {
-      obstacles.splice(i, 1);
-      score++;
-      document.getElementById('score').innerText = 'Score: ' + score;
-    }
-  });
-
-  requestAnimationFrame(update);
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, 10, 0, Math.PI*2);
+  ctx.fill();
 }
 
-// Controls (FIXED)
-function movePlayer(x) {
-  player.x = x - player.size / 2;
+function update(){
+  ball.x += ball.vx;
+  ball.y += ball.vy;
 
-  // Keep inside screen
-  if (player.x < 0) player.x = 0;
-  if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+  // hit detection
+  if(!ball.hit &&
+     ball.y > bat.y - 10 &&
+     ball.x > bat.x &&
+     ball.x < bat.x + bat.w){
+
+    ball.hit = true;
+
+    let center = bat.x + bat.w/2;
+    let diff = ball.x - center;
+
+    // direction (leg/off)
+    ball.vx = diff * 0.2;
+    ball.vy = -12;
+
+    // runs based on timing
+    let timing = Math.abs(ball.y - bat.y);
+    let r = timing < 5 ? 6 : timing < 10 ? 4 : 2;
+    runs += r;
+  }
+
+  // after hit → goes out
+  if(ball.hit && ball.y < 0){
+    balls++;
+    if(balls>=6){
+      alert('Game Over! Runs: '+runs);
+      location.reload();
+    }
+    newBall();
+  }
+
+  // miss
+  if(ball.y > canvas.height){
+    balls++;
+    if(balls>=6){
+      alert('Game Over! Runs: '+runs);
+      location.reload();
+    }
+    newBall();
+  }
+
+  document.getElementById('ui').innerText = `Runs: ${runs} | Balls: ${balls}`;
 }
 
-window.addEventListener('mousemove', (e) => movePlayer(e.clientX));
-window.addEventListener('touchmove', (e) => movePlayer(e.touches[0].clientX));
+function loop(){ draw(); update(); requestAnimationFrame(loop); }
 
-setInterval(spawnObstacle, 700);
-setInterval(() => speed += 0.2, 2000);
+// controls
+function move(x){
+  bat.x = x - bat.w/2;
+}
 
-update();
+window.addEventListener('mousemove', e=>move(e.clientX));
+window.addEventListener('touchmove', e=>move(e.touches[0].clientX));
+
+loop();
 </script></body>
 </html>
