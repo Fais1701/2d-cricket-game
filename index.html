@@ -2,7 +2,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cricket Game - nPower Style</title>
+<title>Cricket Engine v1</title>
 <style>
   body { margin:0; overflow:hidden; background:#0b6623; font-family:Arial; }
   canvas { display:block; }
@@ -25,13 +25,14 @@ function newBall(){
   ball = {
     x: canvas.width/2,
     y: 0,
-    vx: (Math.random()-0.5)*4,
-    vy: 6,
+    vx: (Math.random()-0.5)*3,
+    vy: 4,
+    size: 6,
     hit:false
   };
 }
 
-bat = { x: canvas.width/2 - 60, y: canvas.height - 100, w:120, h:12 };
+bat = { x: canvas.width/2 - 60, y: canvas.height - 120, w:120, h:12 };
 newBall();
 
 function draw(){
@@ -41,13 +42,13 @@ function draw(){
   ctx.fillStyle = '#1e8f2f';
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // pitch perspective
+  // fake 3D pitch
   ctx.fillStyle = '#c2b280';
   ctx.beginPath();
-  ctx.moveTo(canvas.width/2 - 40,0);
-  ctx.lineTo(canvas.width/2 + 40,0);
-  ctx.lineTo(canvas.width/2 + 120,canvas.height);
-  ctx.lineTo(canvas.width/2 - 120,canvas.height);
+  ctx.moveTo(canvas.width/2 - 30,0);
+  ctx.lineTo(canvas.width/2 + 30,0);
+  ctx.lineTo(canvas.width/2 + 150,canvas.height);
+  ctx.lineTo(canvas.width/2 - 150,canvas.height);
   ctx.closePath();
   ctx.fill();
 
@@ -55,10 +56,10 @@ function draw(){
   ctx.fillStyle = 'white';
   ctx.fillRect(bat.x, bat.y, bat.w, bat.h);
 
-  // ball
+  // ball (size changes = depth illusion)
   ctx.fillStyle = 'red';
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, 10, 0, Math.PI*2);
+  ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI*2);
   ctx.fill();
 }
 
@@ -66,9 +67,18 @@ function update(){
   ball.x += ball.vx;
   ball.y += ball.vy;
 
+  // increase size as it comes closer (depth)
+  ball.size = 6 + (ball.y / canvas.height) * 10;
+
+  // bounce effect
+  if(ball.y > canvas.height/2 && !ball.bounced){
+    ball.vy *= 0.8;
+    ball.bounced = true;
+  }
+
   // hit detection
   if(!ball.hit &&
-     ball.y > bat.y - 10 &&
+     ball.y > bat.y - 15 &&
      ball.x > bat.x &&
      ball.x < bat.x + bat.w){
 
@@ -77,33 +87,27 @@ function update(){
     let center = bat.x + bat.w/2;
     let diff = ball.x - center;
 
-    // direction (leg/off)
-    ball.vx = diff * 0.2;
+    // direction
+    ball.vx = diff * 0.25;
     ball.vy = -12;
 
-    // runs based on timing
+    // timing
     let timing = Math.abs(ball.y - bat.y);
-    let r = timing < 5 ? 6 : timing < 10 ? 4 : 2;
+    let r = timing < 5 ? 6 : timing < 12 ? 4 : 1;
     runs += r;
   }
 
-  // after hit → goes out
+  // after hit
   if(ball.hit && ball.y < 0){
     balls++;
-    if(balls>=6){
-      alert('Game Over! Runs: '+runs);
-      location.reload();
-    }
+    if(balls>=6){ alert('Game Over: '+runs); location.reload(); }
     newBall();
   }
 
   // miss
   if(ball.y > canvas.height){
     balls++;
-    if(balls>=6){
-      alert('Game Over! Runs: '+runs);
-      location.reload();
-    }
+    if(balls>=6){ alert('Game Over: '+runs); location.reload(); }
     newBall();
   }
 
@@ -112,11 +116,7 @@ function update(){
 
 function loop(){ draw(); update(); requestAnimationFrame(loop); }
 
-// controls
-function move(x){
-  bat.x = x - bat.w/2;
-}
-
+function move(x){ bat.x = x - bat.w/2; }
 window.addEventListener('mousemove', e=>move(e.clientX));
 window.addEventListener('touchmove', e=>move(e.touches[0].clientX));
 
