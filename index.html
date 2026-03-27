@@ -2,7 +2,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cricket Pixel v3</title>
+<title>Cricket Fixed View</title>
 <style>
   body { margin:0; overflow:hidden; background:#0b6623; }
   canvas { display:block; }
@@ -20,7 +20,6 @@ resize(); window.addEventListener('resize', resize);
 
 let runs=0, balls=0;
 let ball, bat;
-let touchStartX = 0;
 
 function newBall(){
   ball = {
@@ -28,55 +27,58 @@ function newBall(){
     y: 50,
     vx: (Math.random()-0.5)*2,
     vy: 5,
-    size: 5,
-    hit:false,
-    bounced:false
+    size: 6,
+    hit:false
   };
 }
 
 bat = { x: canvas.width/2 - 60, y: canvas.height - 120, w:120, h:12 };
 newBall();
 
-function drawPixelRect(x,y,w,h,color){
-  ctx.fillStyle=color;
-  ctx.fillRect(x,y,w,h);
-}
-
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // grass
+  ctx.fillStyle = '#1e8f2f';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
   // pitch
   ctx.fillStyle = '#c2b280';
   ctx.beginPath();
-  ctx.moveTo(canvas.width/2 - 30,0);
-  ctx.lineTo(canvas.width/2 + 30,0);
+  ctx.moveTo(canvas.width/2 - 40,0);
+  ctx.lineTo(canvas.width/2 + 40,0);
   ctx.lineTo(canvas.width/2 + 150,canvas.height);
   ctx.lineTo(canvas.width/2 - 150,canvas.height);
   ctx.closePath();
   ctx.fill();
 
-  // bowler (top)
-  drawPixelRect(canvas.width/2 - 10,20,20,20,'blue');
-
-  // batsman (bottom)
-  drawPixelRect(bat.x + bat.w/2 - 10, bat.y - 30,20,20,'white');
-
-  // stumps (bottom)
-  drawPixelRect(canvas.width/2 - 5, bat.y - 10,3,20,'yellow');
-  drawPixelRect(canvas.width/2, bat.y - 10,3,20,'yellow');
-  drawPixelRect(canvas.width/2 + 5, bat.y - 10,3,20,'yellow');
+  // 🔥 DRAW ORDER FIXED (important)
 
   // fielders
-  drawPixelRect(50,200,10,10,'red');
-  drawPixelRect(canvas.width-60,250,10,10,'red');
-  drawPixelRect(canvas.width/2 - 200,350,10,10,'red');
-  drawPixelRect(canvas.width/2 + 200,350,10,10,'red');
+  ctx.fillStyle = 'red';
+  ctx.fillRect(80,200,12,12);
+  ctx.fillRect(canvas.width-100,250,12,12);
+  ctx.fillRect(canvas.width/2 - 200,350,12,12);
+  ctx.fillRect(canvas.width/2 + 200,350,12,12);
+
+  // bowler
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(canvas.width/2 - 10,30,20,20);
+
+  // stumps
+  ctx.fillStyle = 'yellow';
+  ctx.fillRect(canvas.width/2 - 6, bat.y - 15,4,25);
+  ctx.fillRect(canvas.width/2, bat.y - 15,4,25);
+  ctx.fillRect(canvas.width/2 + 6, bat.y - 15,4,25);
+
+  // batsman
+  ctx.fillStyle = 'white';
+  ctx.fillRect(bat.x + bat.w/2 - 10, bat.y - 30,20,20);
 
   // bat
-  ctx.fillStyle = 'white';
   ctx.fillRect(bat.x, bat.y, bat.w, bat.h);
 
-  // ball
+  // ball (on top always)
   ctx.fillStyle = 'red';
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI*2);
@@ -87,40 +89,17 @@ function update(){
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  ball.size = 5 + (ball.y / canvas.height) * 12;
-
-  if(ball.y > canvas.height/2 && !ball.bounced){
-    ball.vy *= 0.7;
-    ball.bounced = true;
-  }
+  ball.size = 6 + (ball.y / canvas.height) * 10;
 
   // hit
   if(!ball.hit && ball.y > bat.y - 15 && ball.x > bat.x && ball.x < bat.x + bat.w){
     ball.hit = true;
-
-    let timing = Math.abs(ball.y - bat.y);
-    let power = timing < 5 ? 14 : timing < 12 ? 10 : 6;
-
-    ball.vx *= 2;
-    ball.vy = -power;
-
-    let r = timing < 5 ? 6 : timing < 12 ? 4 : 1;
-    runs += r;
+    ball.vy = -12;
+    runs += 4;
   }
 
-  // miss → bowled
-  if(!ball.hit && ball.y > bat.y && Math.abs(ball.x - canvas.width/2) < 10){
-    alert('BOWLED! Runs: '+runs);
-    location.reload();
-  }
-
-  if(ball.hit && ball.y < 0){
-    balls++;
-    if(balls>=6){ alert('Game Over: '+runs); location.reload(); }
-    newBall();
-  }
-
-  if(ball.y > canvas.height){
+  // reset
+  if(ball.y > canvas.height || (ball.hit && ball.y < 0)){
     balls++;
     if(balls>=6){ alert('Game Over: '+runs); location.reload(); }
     newBall();
@@ -131,43 +110,8 @@ function update(){
 
 function loop(){ draw(); update(); requestAnimationFrame(loop); }
 
-function hit(direction){
-  if(ball.hit) return;
-
-  if(ball.y < bat.y - 20 || ball.y > bat.y + 20) return;
-
-  ball.hit = true;
-
-  let timing = Math.abs(ball.y - bat.y);
-  let power = timing < 5 ? 14 : timing < 12 ? 10 : 6;
-
-  if(direction==='left') ball.vx = -power*0.3;
-  else if(direction==='right') ball.vx = power*0.3;
-  else ball.vx = 0;
-
-  ball.vy = -power;
-
-  let r = timing < 5 ? 6 : timing < 12 ? 4 : 1;
-  runs += r;
-}
-
-window.addEventListener('touchstart', e=> touchStartX = e.touches[0].clientX);
-window.addEventListener('touchend', e=>{
-  let diff = e.changedTouches[0].clientX - touchStartX;
-  if(Math.abs(diff)<20) hit('straight');
-  else if(diff<0) hit('left');
-  else hit('right');
-});
-
-window.addEventListener('mousedown', e=> touchStartX = e.clientX);
-window.addEventListener('mouseup', e=>{
-  let diff = e.clientX - touchStartX;
-  if(Math.abs(diff)<20) hit('straight');
-  else if(diff<0) hit('left');
-  else hit('right');
-});
-
 window.addEventListener('mousemove', e=> bat.x = e.clientX - bat.w/2);
+window.addEventListener('touchmove', e=> bat.x = e.touches[0].clientX - bat.w/2);
 
 loop();
 </script></body>
