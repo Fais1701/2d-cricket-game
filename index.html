@@ -2,11 +2,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cricket Engine v1</title>
+<title>Cricket Pixel v3</title>
 <style>
-  body { margin:0; overflow:hidden; background:#0b6623; font-family:Arial; }
+  body { margin:0; overflow:hidden; background:#0b6623; }
   canvas { display:block; }
-  #ui { position:absolute; top:10px; left:10px; color:white; font-size:18px; }
+  #ui { position:absolute; top:10px; left:10px; color:white; font-family:Arial; font-size:18px; }
 </style>
 </head>
 <body>
@@ -20,29 +20,32 @@ resize(); window.addEventListener('resize', resize);
 
 let runs=0, balls=0;
 let ball, bat;
+let touchStartX = 0;
 
 function newBall(){
   ball = {
     x: canvas.width/2,
-    y: 0,
-    vx: (Math.random()-0.5)*3,
-    vy: 4,
-    size: 6,
-    hit:false
+    y: 50,
+    vx: (Math.random()-0.5)*2,
+    vy: 5,
+    size: 5,
+    hit:false,
+    bounced:false
   };
 }
 
 bat = { x: canvas.width/2 - 60, y: canvas.height - 120, w:120, h:12 };
 newBall();
 
+function drawPixelRect(x,y,w,h,color){
+  ctx.fillStyle=color;
+  ctx.fillRect(x,y,w,h);
+}
+
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // grass
-  ctx.fillStyle = '#1e8f2f';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // fake 3D pitch
+  // pitch
   ctx.fillStyle = '#c2b280';
   ctx.beginPath();
   ctx.moveTo(canvas.width/2 - 30,0);
@@ -52,11 +55,28 @@ function draw(){
   ctx.closePath();
   ctx.fill();
 
+  // bowler (top)
+  drawPixelRect(canvas.width/2 - 10,20,20,20,'blue');
+
+  // batsman (bottom)
+  drawPixelRect(bat.x + bat.w/2 - 10, bat.y - 30,20,20,'white');
+
+  // stumps (bottom)
+  drawPixelRect(canvas.width/2 - 5, bat.y - 10,3,20,'yellow');
+  drawPixelRect(canvas.width/2, bat.y - 10,3,20,'yellow');
+  drawPixelRect(canvas.width/2 + 5, bat.y - 10,3,20,'yellow');
+
+  // fielders
+  drawPixelRect(50,200,10,10,'red');
+  drawPixelRect(canvas.width-60,250,10,10,'red');
+  drawPixelRect(canvas.width/2 - 200,350,10,10,'red');
+  drawPixelRect(canvas.width/2 + 200,350,10,10,'red');
+
   // bat
   ctx.fillStyle = 'white';
   ctx.fillRect(bat.x, bat.y, bat.w, bat.h);
 
-  // ball (size changes = depth illusion)
+  // ball
   ctx.fillStyle = 'red';
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI*2);
@@ -67,44 +87,39 @@ function update(){
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // increase size as it comes closer (depth)
-  ball.size = 6 + (ball.y / canvas.height) * 10;
+  ball.size = 5 + (ball.y / canvas.height) * 12;
 
-  // bounce effect
   if(ball.y > canvas.height/2 && !ball.bounced){
-    ball.vy *= 0.8;
+    ball.vy *= 0.7;
     ball.bounced = true;
   }
 
-  // hit detection
-  if(!ball.hit &&
-     ball.y > bat.y - 15 &&
-     ball.x > bat.x &&
-     ball.x < bat.x + bat.w){
-
+  // hit
+  if(!ball.hit && ball.y > bat.y - 15 && ball.x > bat.x && ball.x < bat.x + bat.w){
     ball.hit = true;
 
-    let center = bat.x + bat.w/2;
-    let diff = ball.x - center;
-
-    // direction
-    ball.vx = diff * 0.25;
-    ball.vy = -12;
-
-    // timing
     let timing = Math.abs(ball.y - bat.y);
+    let power = timing < 5 ? 14 : timing < 12 ? 10 : 6;
+
+    ball.vx *= 2;
+    ball.vy = -power;
+
     let r = timing < 5 ? 6 : timing < 12 ? 4 : 1;
     runs += r;
   }
 
-  // after hit
+  // miss → bowled
+  if(!ball.hit && ball.y > bat.y && Math.abs(ball.x - canvas.width/2) < 10){
+    alert('BOWLED! Runs: '+runs);
+    location.reload();
+  }
+
   if(ball.hit && ball.y < 0){
     balls++;
     if(balls>=6){ alert('Game Over: '+runs); location.reload(); }
     newBall();
   }
 
-  // miss
   if(ball.y > canvas.height){
     balls++;
     if(balls>=6){ alert('Game Over: '+runs); location.reload(); }
@@ -116,9 +131,43 @@ function update(){
 
 function loop(){ draw(); update(); requestAnimationFrame(loop); }
 
-function move(x){ bat.x = x - bat.w/2; }
-window.addEventListener('mousemove', e=>move(e.clientX));
-window.addEventListener('touchmove', e=>move(e.touches[0].clientX));
+function hit(direction){
+  if(ball.hit) return;
+
+  if(ball.y < bat.y - 20 || ball.y > bat.y + 20) return;
+
+  ball.hit = true;
+
+  let timing = Math.abs(ball.y - bat.y);
+  let power = timing < 5 ? 14 : timing < 12 ? 10 : 6;
+
+  if(direction==='left') ball.vx = -power*0.3;
+  else if(direction==='right') ball.vx = power*0.3;
+  else ball.vx = 0;
+
+  ball.vy = -power;
+
+  let r = timing < 5 ? 6 : timing < 12 ? 4 : 1;
+  runs += r;
+}
+
+window.addEventListener('touchstart', e=> touchStartX = e.touches[0].clientX);
+window.addEventListener('touchend', e=>{
+  let diff = e.changedTouches[0].clientX - touchStartX;
+  if(Math.abs(diff)<20) hit('straight');
+  else if(diff<0) hit('left');
+  else hit('right');
+});
+
+window.addEventListener('mousedown', e=> touchStartX = e.clientX);
+window.addEventListener('mouseup', e=>{
+  let diff = e.clientX - touchStartX;
+  if(Math.abs(diff)<20) hit('straight');
+  else if(diff<0) hit('left');
+  else hit('right');
+});
+
+window.addEventListener('mousemove', e=> bat.x = e.clientX - bat.w/2);
 
 loop();
 </script></body>
